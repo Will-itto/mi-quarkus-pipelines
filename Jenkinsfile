@@ -163,7 +163,7 @@ pipeline {
                 Revisa los logs para identificar el error.
                 Errores comunes:
                 - Credenciales de Docker Hub incorrectas
-                - Tests fallidos
+                - Tests fallidos y otras razones
                 - Problemas de compilación
             '''
         }
