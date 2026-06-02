@@ -7,7 +7,6 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'mi-quarkus-pipelines'
         REGISTRY_CREDENTIALS = credentials('docker-hub-credentials')
-        PATH = "/usr/local/bin:$PATH"
     }
     stages {
         stage('Install Docker') {
