@@ -9,11 +9,6 @@ pipeline {
         REGISTRY_CREDENTIALS = credentials('docker-hub-credentials')
     }
     stages {
-        stage('Install Docker') {
-            steps {
-                sh 'apt-get update && apt-get install -y docker.io'
-            }
-        }
         stage('Check Tools') {
             steps {
                     sh 'echo "=== Java version ==="'
