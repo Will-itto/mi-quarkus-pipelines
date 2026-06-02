@@ -9,6 +9,18 @@ pipeline {
         REGISTRY_CREDENTIALS = credentials('docker-hub-credentials')
     }
     stages {
+        stage('Check Tools') {
+            steps {
+                    sh 'echo "=== Java version ==="'
+                    sh 'java -version || echo "Java not found"'
+                    sh 'echo "=== Maven version ==="'
+                    sh 'mvn -version || echo "Maven not found"'
+                    sh 'echo "=== Docker version ==="'
+                    sh 'docker --version || echo "Docker not found"'
+                    sh 'echo "=== PATH ==="'
+                    sh 'echo $PATH'
+                }
+            }
         stage('Checkout') {
             steps {
                 git url: 'https://github.com/Will-itto/mi-quarkus-pipelines.git', branch: 'main'
