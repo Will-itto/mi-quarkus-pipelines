@@ -7,8 +7,14 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'mi-quarkus-pipelines'
         REGISTRY_CREDENTIALS = credentials('docker-hub-credentials')
+        PATH = "/usr/local/bin:$PATH"
     }
     stages {
+        stage('Install Docker') {
+            steps {
+                sh 'apt-get update && apt-get install -y docker.io'
+            }
+        }
         stage('Check Tools') {
             steps {
                     sh 'echo "=== Java version ==="'
