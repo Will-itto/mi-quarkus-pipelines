@@ -1,59 +1,171 @@
 pipeline {
     agent any
+    
     tools {
         maven 'Maven-3.9'
         jdk 'JDK-17'
     }
+    
     environment {
-        DOCKER_IMAGE = 'mi-quarkus-pipelines'
-        REGISTRY_CREDENTIALS = credentials('docker-hub-credentials')
+        // Credenciales de Docker Hub
+        DOCKER_CRED = credentials('docker-hub-credentials')
+        // Nombre de la imagen
+        IMAGE_NAME = "${DOCKER_CRED_USR}/mi-quarkus-pipelines"
+        IMAGE_TAG = "latest"
     }
+    
     stages {
-        stage('Check Tools') {
-            steps {
-                    sh 'echo "=== Java version ==="'
-                    sh 'java -version || echo "Java not found"'
-                    sh 'echo "=== Maven version ==="'
-                    sh 'mvn -version || echo "Maven not found"'
-                    sh 'echo "=== Docker version ==="'
-                    sh 'docker --version || echo "Docker not found"'
-                    sh 'echo "=== PATH ==="'
-                    sh 'echo $PATH'
-                }
-            }
         stage('Checkout') {
             steps {
-                git url: 'https://github.com/Will-itto/mi-quarkus-pipelines.git', branch: 'main'
+                checkout scm
+                echo "Código clonado exitosamente"
             }
         }
-        stage('Test') {
+        
+        stage('Verificar Herramientas') {
             steps {
-                sh './mvnw test'
+                sh '''
+                    echo "=== Versiones de herramientas ==="
+                    java -version
+                    mvn -version
+                    docker --version
+                    echo "================================"
+                '''
             }
         }
-        stage('Build & Package') {
+        
+        stage('Compilar Proyecto') {
             steps {
-                sh './mvnw package -DskipTests'
+                sh 'mvn clean compile -DskipTests'
+            }
+            post {
+                success {
+                    echo "Compilación exitosa"
+                }
+                failure {
+                    echo "Error en la compilación"
+                }
             }
         }
-        stage('Build Docker Image') {
+        
+        stage('Ejecutar Tests') {
             steps {
-                sh "docker build -t ${DOCKER_IMAGE}:latest ."
+                sh 'mvn test'
+            }
+            post {
+                success {
+                    echo "Todos los tests pasaron"
+                }
+                failure {
+                    echo "Algunos tests fallaron"
+                }
             }
         }
-        stage('Push to Docker Hub') {
+        
+        stage('Empaquetar Aplicación') {
             steps {
-                sh """
-                    echo ${REGISTRY_CREDENTIALS_PSW} | docker login -u ${REGISTRY_CREDENTIALS_USR} --password-stdin
-                    docker tag ${DOCKER_IMAGE}:latest ${REGISTRY_CREDENTIALS_USR}/${DOCKER_IMAGE}:latest
-                    docker push ${REGISTRY_CREDENTIALS_USR}/${DOCKER_IMAGE}:latest
-                """
+                sh 'mvn package -DskipTests'
+            }
+            post {
+                success {
+                    echo "JAR generado en target/"
+                }
+            }
+        }
+        
+        stage('Construir Imagen Docker') {
+            steps {
+                sh '''
+                    echo "Construyendo imagen: ${IMAGE_NAME}:${IMAGE_TAG}"
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    docker images | grep mi-quarkus-pipelines
+                '''
+            }
+        }
+        
+        stage('Probar Contenedor Localmente') {
+            steps {
+                sh '''
+                    # Detener contenedor anterior si existe
+                    docker stop mi-app-test || true
+                    docker rm mi-app-test || true
+                    
+                    # Ejecutar contenedor de prueba
+                    docker run -d --name mi-app-test -p 8081:8080 ${IMAGE_NAME}:${IMAGE_TAG}
+                    
+                    # Esperar a que inicie
+                    sleep 10
+                    
+                    # Probar el endpoint
+                    curl -f http://localhost:8081/hello || exit 1
+                    
+                    # Limpiar
+                    docker stop mi-app-test
+                    docker rm mi-app-test
+                    
+                    echo "Contenedor probado exitosamente"
+                '''
+            }
+        }
+        
+        stage('Login a Docker Hub') {
+            steps {
+                sh '''
+                    echo ${DOCKER_CRED_PSW} | docker login -u ${DOCKER_CRED_USR} --password-stdin
+                    echo "Login exitoso a Docker Hub"
+                '''
+            }
+        }
+        
+        stage('Subir Imagen a Docker Hub') {
+            steps {
+                sh '''
+                    echo "Subiendo imagen a Docker Hub..."
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    echo "Imagen subida exitosamente: ${IMAGE_NAME}:${IMAGE_TAG}"
+                '''
+            }
+        }
+        
+        stage('Limpiar Recursos Locales') {
+            steps {
+                sh '''
+                    # Limpiar imágenes no utilizadas
+                    docker image prune -f
+                    echo "Limpieza completada"
+                '''
             }
         }
     }
+    
     post {
         always {
+            echo "Pipeline finalizado"
+            // Limpiar workspace
             cleanWs()
+        }
+        success {
+            echo '''
+                🎉 PIPELINE EXITOSO 🎉
+                
+                Imagen disponible en Docker Hub:
+                ${IMAGE_NAME}:${IMAGE_TAG}
+                
+                Para descargar y ejecutar:
+                docker pull ${IMAGE_NAME}:${IMAGE_TAG}
+                docker run -p 8080:8080 ${IMAGE_NAME}:${IMAGE_TAG}
+            '''
+        }
+        failure {
+            echo '''
+                ❌ PIPELINE FALLIDO ❌
+                
+                Revisa los logs para identificar el error.
+                Errores comunes:
+                - Credenciales de Docker Hub incorrectas
+                - Tests fallidos
+                - Problemas de compilación
+            '''
         }
     }
 }
