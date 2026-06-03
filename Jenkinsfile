@@ -142,7 +142,7 @@ pipeline {
         always {
             echo "Pipeline finalizado"
             // Limpiar workspace
-            cleanWs()
+            //cleanWs()
         }
         success {
             echo '''
