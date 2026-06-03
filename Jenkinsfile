@@ -11,7 +11,7 @@ pipeline {
     }
     
     stages {
-        stage('Build & Deploy') {
+        stage('Build & Deploy Docker Image') {
             steps {
                 sh '''
                     mvn clean package -DskipTests
