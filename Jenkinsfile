@@ -1,25 +1,38 @@
 pipeline {
-    agent {
-        docker { 
-            image 'maven:3.9-eclipse-temurin-17'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
-     
+    agent any
+    
     environment {
         DOCKER_CRED = credentials('docker-hub-credentials')
     }
     
     stages {
-        stage('Build & Deploy Docker Image') {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build con Maven Wrapper') {
             steps {
                 sh '''
-                    mvn clean package -DskipTests
-                    docker build -t ${DOCKER_CRED_USR}/mi-quarkus-pipelines:latest .
-                    echo ${DOCKER_CRED_PSW} | docker login -u ${DOCKER_CRED_USR} --password-stdin
-                    docker push ${DOCKER_CRED_USR}/mi-quarkus-pipelines:latest
+                    chmod +x mvnw
+                    ./mvnw clean package -DskipTests
+                    ls -la target/quarkus-app/
                 '''
             }
+        }
+        
+        stage('Guardar Artefacto') {
+            steps {
+                archiveArtifacts artifacts: 'target/quarkus-app/**/*', allowEmptyArchive: true
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '✅ Build completado exitosamente!'
+            echo 'El JAR está disponible en los artefactos'
         }
     }
 }
