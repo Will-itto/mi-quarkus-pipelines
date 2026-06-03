@@ -15,6 +15,27 @@ pipeline {
     }
     
     stages {
+        stage('Diagnóstico') {
+            steps {
+                sh '''
+                    echo "=== Diagnóstico de Comandos ==="
+                    
+                    # Verificar qué comandos existen
+                    which java || echo "❌ Java no encontrado"
+                    which mvn || echo "❌ Maven no encontrado"  
+                    which docker || echo "❌ Docker no encontrado"
+                    which git || echo "❌ Git no encontrado"
+                    
+                    echo "=== PATH actual ==="
+                    echo $PATH
+                    
+                    echo "=== Directorio actual ==="
+                    pwd
+                    ls -la
+                '''
+            }
+        }
+
         stage('Checkout') {
             steps {
                 checkout scm
